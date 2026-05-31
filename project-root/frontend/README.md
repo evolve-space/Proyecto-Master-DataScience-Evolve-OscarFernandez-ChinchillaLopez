@@ -10,6 +10,8 @@ Su funcion es ofrecer la interfaz web para:
 - editar rutas
 - cargar rutas como usuario final
 - visualizar rutas y POIs en mapa
+- mostrar descripciones turisticas enriquecidas si el backend las devuelve
+- mostrar fallback turistico cuando el backend no puede usar Gemini
 
 ## Tecnologias
 
@@ -224,6 +226,8 @@ El frontend ya esta conectado con:
 - recomendador Python
 - MySQL para rutas/admin
 - MySQL para usuarios finales y rutas asignadas
+- descripciones IA de POIs generadas/cacheadas por backend cuando Gemini esta configurado
+- textos de POI ya normalizados por backend para evitar etiquetas tecnicas en el detalle
 - OSRM para trazado peatonal
 
 Siguiente paso:

@@ -45,6 +45,9 @@ Actualmente incluye:
 - asignacion de rutas a usuarios finales
 - vista Usuario con rutas asignadas desde MySQL
 - importacion de POIs a MySQL
+- enriquecimiento de descripciones de POIs con Gemini Flash y cache en MySQL
+- fallback local para evitar textos tecnicos si Gemini falla o supera cuota
+- limpieza de caracteres corruptos frecuentes en nombres de POIs
 - interfaz responsive con modo claro/oscuro e idioma ES/EN
 
 El login JWT ya esta activo. Cada usuario entra con su email/password y la app muestra automaticamente la vista correspondiente a su rol.
@@ -106,6 +109,7 @@ limpieza y enriquecimiento de datos
 -> integracion backend/frontend
 -> persistencia MySQL
 -> panel admin y gestion inicial de usuarios
+-> enriquecimiento generativo de descripciones de POIs
 ```
 
 Los notebooks documentan la parte experimental. La version integrada en la web esta en:
@@ -182,6 +186,7 @@ Resultados destacados:
 - conexion real entre frontend, backend Node.js, motor Python y dataset hibrido
 - persistencia en MySQL de usuarios, empresas, POIs importados y rutas generadas
 - login con JWT y roles diferenciados para administrador, empresa y usuario final
+- descripciones turisticas generadas/cacheadas con Gemini Flash para mejorar la experiencia del usuario
 - visualizacion de rutas en mapa interactivo con resumen y detalle de POIs
 
 Ejemplo de resultado obtenido por el sistema:
@@ -267,6 +272,7 @@ Tecnologias:
 - `bcryptjs` para guardar passwords hasheadas
 - `jsonwebtoken` para sesiones JWT
 - comunicacion interna con Python
+- integracion opcional con Gemini Flash para enriquecer descripciones de POIs y guardarlas en MySQL
 
 Endpoints principales:
 
@@ -287,6 +293,19 @@ GET    /api/auth/me
 GET    /api/company/users
 POST   /api/company/users
 ```
+
+Enriquecimiento opcional con IA generativa:
+
+```text
+project-root/backend/.env
+
+GEMINI_API_KEY=tu_api_key_de_gemini
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+`project-root/backend/.env` esta ignorado por Git para no subir claves privadas.
+
+Si no se configura `GEMINI_API_KEY`, la aplicacion sigue funcionando. El backend usa un fallback local para mostrar una descripcion turistica basica en vez de textos tecnicos como `No description available` o etiquetas internas.
 
 ## Frontend
 

@@ -3,6 +3,7 @@ import { spawn } from "node:child_process";
 import { env } from "../config/env.js";
 import { clamp, haversineDistanceKm } from "../utils/geo.js";
 import { toSlug } from "../utils/text.js";
+import { tryEnrichRecommendationDescriptions } from "./poiDescriptionService.js";
 
 // Este servicio tiene dos responsabilidades:
 // 1. Mantener endpoints auxiliares de POIs/categorias usados por la web.
@@ -353,7 +354,11 @@ function runHybridRecommender(preferences) {
 export async function recommendRoute(preferences) {
   // Funcion usada por recommendationController.js.
   // Mantiene el mismo contrato de API, pero ahora delega en Python.
-  return runHybridRecommender(preferences);
+  const recommendation = await runHybridRecommender(preferences);
+
+  return tryEnrichRecommendationDescriptions(recommendation, {
+    languageCode: preferences.language,
+  });
 }
 
 export async function recommendRouteWithTemporaryHeuristic(preferences) {

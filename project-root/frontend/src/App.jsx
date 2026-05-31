@@ -567,7 +567,10 @@ export default function App() {
     setError("");
 
     try {
-      const response = await recommendRoute(preferences);
+      const response = await recommendRoute({
+        ...preferences,
+        language,
+      });
       const requestedMinimum = Number(preferences.minPois || 0);
 
       if (requestedMinimum > 0 && response.summary.totalPois < requestedMinimum) {
@@ -590,40 +593,40 @@ export default function App() {
           const streetRoute = await fetchStreetRoute(waypoints);
 
           enrichedResponse = {
-            ...response,
+            ...enrichedResponse,
             navigation: streetRoute,
             summary: {
-              ...response.summary,
+              ...enrichedResponse.summary,
               totalDistanceKm: streetRoute.distanceKm,
               totalTravelMinutes: streetRoute.durationMinutes,
               totalExperienceMinutes:
-                response.summary.totalVisitMinutes + streetRoute.durationMinutes,
+                enrichedResponse.summary.totalVisitMinutes + streetRoute.durationMinutes,
             },
             meta: {
-              ...response.meta,
+              ...enrichedResponse.meta,
               notes: [
                 "La distancia y el trazado del mapa se calculan sobre red viaria peatonal.",
-                ...(response.meta?.notes || []),
+                ...(enrichedResponse.meta?.notes || []),
               ],
             },
           };
         } catch {
           enrichedResponse = {
-            ...response,
+            ...enrichedResponse,
             navigation: {
               geometry: waypoints.map((point) => [point.lat, point.lng]),
               mode: "straight-line-fallback",
             },
             summary: {
-              ...response.summary,
+              ...enrichedResponse.summary,
               totalTravelMinutes: null,
-              totalExperienceMinutes: response.summary.totalVisitMinutes,
+              totalExperienceMinutes: enrichedResponse.summary.totalVisitMinutes,
             },
             meta: {
-              ...response.meta,
+              ...enrichedResponse.meta,
               notes: [
                 "No se pudo recuperar la ruta callejeando y se muestra trazado directo como respaldo.",
-                ...(response.meta?.notes || []),
+                ...(enrichedResponse.meta?.notes || []),
               ],
             },
           };

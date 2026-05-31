@@ -10,6 +10,7 @@ Su funcion es:
 - guardar y recuperar rutas en MySQL
 - gestionar el panel admin de empresas y usuarios
 - gestionar usuarios finales de empresa y rutas asignadas
+- enriquecer descripciones de POIs con Gemini Flash y cachearlas en MySQL
 
 ## Tecnologias
 
@@ -83,9 +84,27 @@ MYSQL_PORT
 MYSQL_DATABASE
 MYSQL_USER
 MYSQL_PASSWORD
+GEMINI_API_KEY
+GEMINI_MODEL
+GEMINI_API_BASE_URL
 ```
 
 En desarrollo, `start-dev.ps1` suele definir `PYTHON_BIN` para usar el entorno Conda correcto.
+
+`GEMINI_API_KEY` es opcional y debe guardarse en:
+
+```text
+project-root/backend/.env
+```
+
+Ejemplo:
+
+```text
+GEMINI_API_KEY=tu_api_key_de_gemini
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+El archivo `.env` esta ignorado por Git. Si se configura Gemini, el backend genera descripciones turisticas para los POIs de la ruta y las guarda en MySQL. Si Gemini no esta disponible, falla por cuota o devuelve un texto demasiado corto, se genera una descripcion local de respaldo para evitar textos tecnicos en la interfaz.
 
 ## Endpoints
 
@@ -145,6 +164,23 @@ Recibe preferencias del usuario y llama internamente a:
 ```
 
 El backend envia JSON por `stdin` y recibe JSON por `stdout`.
+
+Despues de recibir la ruta del motor Python, el backend puede enriquecer las descripciones de los POIs con Gemini Flash. La descripcion generada se guarda en:
+
+```text
+poi_generated_descriptions
+```
+
+El LLM no decide la ruta. Solo transforma los datos tecnicos del POI en una descripcion turistica orientada al usuario final.
+
+Detalles de la capa LLM:
+
+- reutiliza descripciones existentes desde MySQL para no llamar a Gemini siempre
+- versiona el prompt con `prompt_version`
+- actualmente usa `touristic-poi-v4`
+- humaniza etiquetas tecnicas antes de enviarlas al modelo
+- repara caracteres corruptos frecuentes en nombres/descripciones
+- aplica fallback local si Gemini falla o devuelve una descripcion pobre
 
 ### Rutas guardadas
 

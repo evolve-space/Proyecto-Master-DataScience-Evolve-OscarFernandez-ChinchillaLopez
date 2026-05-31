@@ -11,7 +11,7 @@ La BDD se usa como capa de persistencia y gestion:
 - asignacion de rutas a usuarios finales
 - POIs incluidos en cada ruta
 - JSON con preferencias, resumen, ruta y navegacion
-- estructura preparada para futuras descripciones generadas por IA
+- descripciones generadas por IA para POIs, con version de prompt
 
 Para el MVP actual, el recomendador sigue leyendo el dataset hibrido desde parquet/CSV. MySQL no sustituye todavia al dataset del modelo.
 
@@ -296,6 +296,48 @@ route_pois
 - JSON del POI dentro de la ruta
 
 Esto permite recuperar una ruta aunque el dataset o el modelo cambien mas adelante.
+
+## Descripciones generadas por IA
+
+La tabla:
+
+```text
+poi_generated_descriptions
+```
+
+guarda descripciones turisticas generadas para cada POI.
+
+Campos relevantes:
+
+```text
+poi_id
+language_code
+description_type
+generated_text
+model_name
+prompt_version
+```
+
+Uso previsto:
+
+```text
+el recomendador genera una ruta
+el backend busca si cada POI ya tiene descripcion IA para idioma y version de prompt
+si existe, la reutiliza desde MySQL
+si no existe y hay GEMINI_API_KEY, llama a Gemini Flash
+guarda la descripcion generada
+la devuelve al frontend para mostrarla al usuario final
+```
+
+La descripcion IA no participa en la seleccion de la ruta. Es una capa de enriquecimiento visual y explicativo posterior al sistema hibrido.
+
+La version actual del prompt es:
+
+```text
+touristic-poi-v4
+```
+
+Las versiones anteriores pueden mantenerse como historico de iteracion del prompt, aunque la aplicacion solo reutiliza la version activa.
 
 ## Estado actual
 

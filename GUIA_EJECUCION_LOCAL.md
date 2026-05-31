@@ -253,6 +253,42 @@ $env:PYTHON_BIN="C:\Users\User\miniconda3\envs\master_ds_clean\python.exe"
 
 El script `start-dev.ps1` ya esta preparado para facilitar este arranque en local.
 
+## 9.1. Configurar Gemini Flash opcional
+
+El proyecto puede enriquecer las descripciones de los POIs con Gemini Flash.
+
+No es obligatorio para ejecutar el proyecto. Si no se configura, la aplicacion usa las descripciones originales del dataset.
+
+Para activarlo de forma permanente en local, crear o editar:
+
+```text
+project-root/backend/.env
+```
+
+Contenido:
+
+```env
+GEMINI_API_KEY=TU_API_KEY_DE_GEMINI
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+Tambien se pueden definir temporalmente en PowerShell antes de arrancar el backend:
+
+```powershell
+$env:GEMINI_API_KEY="TU_API_KEY_DE_GEMINI"
+$env:GEMINI_MODEL="gemini-2.5-flash"
+```
+
+El archivo `.env` esta incluido en `.gitignore`, por lo que no debe subirse a GitHub.
+
+El backend guardara las descripciones generadas en MySQL, dentro de:
+
+```text
+poi_generated_descriptions
+```
+
+Si Gemini falla por cuota, clave invalida o limite diario, el proyecto sigue funcionando y muestra una descripcion turistica generada localmente como respaldo.
+
 ## 10. Ejecutar backend y frontend
 
 Desde la raiz del proyecto:
@@ -420,4 +456,3 @@ Frontend: http://localhost:5173
 Backend:  http://localhost:4000
 Health:   http://localhost:4000/api/health
 ```
-

@@ -49,6 +49,32 @@ CLUSTER_ZONE_LABELS = {
     6: "Este litoral y Poblenou",
 }
 
+TEXT_REPLACEMENTS = {
+    "Caf�": "Café",
+    "l'�pera": "l'Òpera",
+    "M�sica": "Música",
+    "M�nica": "Mònica",
+    "M�n": "Món",
+    "Fotogr�fico": "Fotográfico",
+    "Orfe�": "Orfeó",
+    "Dioces�": "Diocesà",
+    "Mar�a": "María",
+    "Montsi�": "Montsió",
+    "Catalu�a": "Cataluña",
+}
+
+
+def clean_display_text(value):
+    """Repara caracteres corruptos frecuentes antes de enviar datos a React."""
+    if value is None:
+        return None
+
+    text = str(value)
+    for broken, fixed in TEXT_REPLACEMENTS.items():
+        text = text.replace(broken, fixed)
+
+    return text
+
 
 def haversine_km(lat1, lon1, lat2, lon2):
     """Calcula distancia geodesica aproximada entre dos coordenadas."""
@@ -432,11 +458,12 @@ def row_to_poi(row, route_position=None):
     # Campos generales del POI usados por mapa, sidebar y panel de detalle.
     poi = {
         "id": str(row.get("id", "")),
-        "name": finite_or_none(row.get("name")),
-        "category": finite_or_none(row.get("category")),
-        "subcategory": finite_or_none(row.get("subcategory")),
-        "description": finite_or_none(row.get("description")) or "No description available.",
-        "city": finite_or_none(row.get("city")) or "Barcelona",
+        "name": clean_display_text(finite_or_none(row.get("name"))),
+        "category": clean_display_text(finite_or_none(row.get("category"))),
+        "subcategory": clean_display_text(finite_or_none(row.get("subcategory"))),
+        "description": clean_display_text(finite_or_none(row.get("description")))
+        or "No description available.",
+        "city": clean_display_text(finite_or_none(row.get("city"))) or "Barcelona",
         "latitude": finite_or_none(row.get("latitude")),
         "longitude": finite_or_none(row.get("longitude")),
         "rating": finite_or_none(row.get("rating_filled", row.get("rating"))),
@@ -447,7 +474,7 @@ def row_to_poi(row, route_position=None):
         "neighborhoodZone": finite_or_none(CLUSTER_ZONE_LABELS.get(int(row.get("cluster_geo"))))
         if finite_or_none(row.get("cluster_geo")) is not None
         else None,
-        "tags": finite_or_none(row.get("tags_str")),
+        "tags": clean_display_text(finite_or_none(row.get("tags_str"))),
         "distanceFromStartKm": round(float(row.get("distance_from_start_km", 0.0)), 3),
         "similarityScore": round(float(row.get("similarity_score", 0.0)), 6),
         "qualitySignal": round(float(row.get("quality_signal", 0.0)), 6),

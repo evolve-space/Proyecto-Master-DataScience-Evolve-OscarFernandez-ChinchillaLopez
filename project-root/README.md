@@ -31,6 +31,7 @@ Frontend React
   -> Backend Express
   -> Motor Python hibrido
   -> Dataset hibrido
+  -> Enriquecimiento opcional de descripciones con Gemini Flash/cache MySQL
   -> Respuesta JSON
   -> Mapa, resultados y persistencia MySQL
 ```
@@ -150,6 +151,8 @@ Se usa para:
 - POIs importados
 - rutas guardadas
 - POIs de cada ruta
+- descripciones turisticas generadas por IA para POIs
+- versiones de prompt usadas para cachear/regenerar textos
 
 El recomendador sigue usando el dataset hibrido:
 
@@ -235,6 +238,17 @@ scikit-learn==1.8.0
 pyarrow==16.1.0
 mysql-connector-python==9.7.0
 ```
+
+Integracion opcional con Gemini Flash:
+
+```text
+project-root/backend/.env
+
+GEMINI_API_KEY
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+Esta capa no decide la ruta. Solo convierte la descripcion tecnica del POI en un texto turistico mas natural para el usuario final y lo guarda en MySQL. Si Gemini no esta disponible o devuelve un texto demasiado corto, el backend genera un fallback turistico local para no mostrar contenido tecnico.
 
 ## Documentacion tecnica
 

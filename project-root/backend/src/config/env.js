@@ -65,6 +65,16 @@ export const env = {
     expiresIn: process.env.JWT_EXPIRES_IN || "8h",
   },
 
+  // Configuracion opcional para enriquecer descripciones de POIs con Gemini.
+  // Si no hay GEMINI_API_KEY, el backend mantiene las descripciones originales.
+  gemini: {
+    apiKey: process.env.GEMINI_API_KEY || "",
+    model: process.env.GEMINI_MODEL || "gemini-2.5-flash",
+    apiBaseUrl:
+      process.env.GEMINI_API_BASE_URL ||
+      "https://generativelanguage.googleapis.com/v1beta",
+  },
+
   // Configuracion MySQL. Por defecto reutiliza database/db_config.local.json.
   db: {
     host: process.env.MYSQL_HOST || localDbConfig.host || "localhost",

@@ -1,6 +1,9 @@
 import { formatDistance, formatDuration, formatScore } from "../utils/formatters.js";
 
 export default function PoiDetailPanel({ poi, t }) {
+  const displayDescription =
+    poi?.aiDescription || poi?.generatedDescription || poi?.description;
+
   return (
     <section className="panel detail-panel">
       <div className="panel-header">
@@ -14,7 +17,7 @@ export default function PoiDetailPanel({ poi, t }) {
 
       {poi && (
         <div className="detail-content">
-          <p className="detail-description">{poi.description}</p>
+          <p className="detail-description">{displayDescription}</p>
           <div className="detail-grid">
             <div><span>{t.detail.route}</span><strong>{poi.routePosition}</strong></div>
             <div><span>{t.detail.category}</span><strong>{poi.category}</strong></div>

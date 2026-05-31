@@ -58,6 +58,8 @@ export default function ResultsSidebar({
         <div className="route-accordion">
           {route.map((poi) => {
             const isSelected = selectedPoi?.id === poi.id;
+            const displayDescription =
+              poi.aiDescription || poi.generatedDescription || poi.description;
 
             return (
               <article
@@ -84,7 +86,7 @@ export default function ResultsSidebar({
 
                 {isSelected && (
                   <div className="poi-accordion-detail">
-                    <p className="poi-description">{poi.description}</p>
+                    <p className="poi-description">{displayDescription}</p>
                     <div className="detail-grid">
                       <div><span>{t.detail.route}</span><strong>{poi.routePosition}</strong></div>
                       <div><span>{t.detail.category}</span><strong>{poi.category}</strong></div>
