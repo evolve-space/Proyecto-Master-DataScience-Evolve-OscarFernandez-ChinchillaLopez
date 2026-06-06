@@ -188,6 +188,10 @@ Detalles de la capa LLM:
 POST /api/routes
 GET  /api/routes/my
 GET  /api/routes/:publicId
+GET  /api/company/routes
+PATCH /api/company/routes/:routeId
+PUT  /api/company/routes/:routeId/recommendation
+DELETE /api/company/routes/:routeId
 ```
 
 `POST /api/routes` guarda:
@@ -200,6 +204,14 @@ GET  /api/routes/:publicId
 - usuario creador, empresa y usuario final asignado si existe
 
 `GET /api/routes/my` devuelve las rutas asignadas al usuario autenticado.
+
+Las rutas de empresa permiten:
+
+- listar rutas guardadas de la empresa autenticada
+- cambiar nombre de la ruta
+- asignar/desasignar usuario final
+- eliminar rutas propias
+- actualizar una ruta ya guardada desde el editor sin crear una copia nueva
 
 Tablas usadas:
 
@@ -215,6 +227,11 @@ GET    /api/admin
 POST   /api/admin/clients
 POST   /api/admin/users
 PATCH  /api/admin/users/:userId/status
+PATCH  /api/admin/users/:userId/password
+GET    /api/admin/routes
+PATCH  /api/admin/routes/:routeId
+POST   /api/admin/routes/:routeId/duplicate
+DELETE /api/admin/routes/:routeId
 ```
 
 Uso:
@@ -224,18 +241,27 @@ Uso:
 - crear usuario de acceso de empresa
 - crear usuarios manualmente
 - activar/desactivar usuarios
+- cambiar/resetear passwords de usuarios
+- listar rutas guardadas de todas las empresas
+- renombrar/reasignar rutas
+- duplicar rutas para reutilizarlas en otra empresa
+- eliminar rutas
 
 Passwords:
 
 - se reciben en texto plano desde el formulario
 - se hashean con `bcryptjs`
 - se guardan en `users.password_hash`
+- no se puede recuperar la password anterior, solo establecer una nueva
 
 ### Empresa
 
 ```text
 GET  /api/company/users
 POST /api/company/users
+PATCH /api/company/users/:userId
+PATCH /api/company/users/:userId/status
+PATCH /api/company/users/:userId/password
 ```
 
 Uso:
@@ -243,9 +269,12 @@ Uso:
 - listar usuarios finales de la empresa autenticada
 - buscar usuarios finales desde frontend
 - crear usuarios finales con password hasheada
+- editar nombre/email de usuarios finales
+- activar/desactivar usuarios finales
+- resetear password de usuarios finales
 - alimentar el selector de asignacion de rutas
 
-Un usuario con rol `client` solo gestiona usuarios de su propia empresa. El rol `admin` puede consultar una vision mas amplia si se usa esta API.
+Un usuario con rol `client` solo gestiona usuarios de su propia empresa. Los usuarios desactivados no pueden iniciar sesion y no se muestran como opcion activa para nuevas asignaciones de rutas.
 
 ## Estado de autenticacion
 
@@ -259,11 +288,13 @@ El backend ya tiene:
 - endpoint `/api/auth/me`
 - rutas asignadas a usuarios finales
 - alta de usuarios finales desde la vista Empresa
+- gestion de rutas guardadas desde Empresa
+- gestion global de rutas desde Admin
 
-Todavia falta:
+Todavia se podria reforzar:
 
-- extender permisos por rol al resto de endpoints privados
-- mejorar la gestion/listado de rutas guardadas desde la vista Empresa
+- auditoria avanzada de cambios
+- permisos mas granulares si el MVP pasa a produccion real
 
 ## Ejecutar
 

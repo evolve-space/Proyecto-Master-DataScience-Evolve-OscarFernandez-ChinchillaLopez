@@ -20,6 +20,11 @@ const EMPTY_USER = {
   password: "demo1234",
 };
 
+const EMPTY_PASSWORD_RESET = {
+  userId: "",
+  password: "demo1234",
+};
+
 function formatDate(value) {
   if (!value) {
     return "";
@@ -34,13 +39,30 @@ export default function AdminPanel({
   message,
   onCreateClient,
   onCreateUser,
+  onDeleteRoute,
+  onDuplicateRoute,
   onRefresh,
+  onRefreshRoutes,
   onToggleUserStatus,
+  onUpdateRoute,
+  onUpdateUserPassword,
+  routes,
+  routesLoading,
   t,
 }) {
   const [clientForm, setClientForm] = useState(EMPTY_CLIENT);
   const [userForm, setUserForm] = useState(EMPTY_USER);
+  const [passwordResetForm, setPasswordResetForm] = useState(EMPTY_PASSWORD_RESET);
   const [clientSearch, setClientSearch] = useState("");
+  const [routeSearch, setRouteSearch] = useState("");
+  const [routeClientFilter, setRouteClientFilter] = useState("");
+  const [routeEditId, setRouteEditId] = useState("");
+  const [routeDuplicateId, setRouteDuplicateId] = useState("");
+  const [routeForm, setRouteForm] = useState({
+    name: "",
+    clientId: "",
+    assignedToUserId: "",
+  });
   const [userSearch, setUserSearch] = useState("");
 
   const clientOptions = useMemo(() => adminData?.clients || [], [adminData?.clients]);
@@ -72,6 +94,30 @@ export default function AdminPanel({
         .some((value) => String(value).toLowerCase().includes(query)),
     );
   }, [adminData?.users, userSearch]);
+  const filteredRoutes = useMemo(() => {
+    const query = routeSearch.trim().toLowerCase();
+
+    return (routes || []).filter((route) => {
+      const matchesClient =
+        !routeClientFilter || Number(route.clientId) === Number(routeClientFilter);
+      const matchesQuery =
+        !query ||
+        [route.name, route.publicId, route.clientName, route.assignedUserName, route.assignedUserEmail]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(query));
+
+      return matchesClient && matchesQuery;
+    });
+  }, [routes, routeSearch, routeClientFilter]);
+  const routeUserOptions = useMemo(() => {
+    if (!routeForm.clientId) {
+      return (adminData?.users || []).filter((user) => user.roleCode === "user");
+    }
+
+    return (adminData?.users || []).filter(
+      (user) => user.roleCode === "user" && Number(user.clientId) === Number(routeForm.clientId),
+    );
+  }, [adminData?.users, routeForm.clientId]);
 
   function updateClientField(name, value) {
     setClientForm((current) => ({ ...current, [name]: value }));
@@ -85,6 +131,10 @@ export default function AdminPanel({
     setUserForm((current) => ({ ...current, [name]: value }));
   }
 
+  function updatePasswordResetField(name, value) {
+    setPasswordResetForm((current) => ({ ...current, [name]: value }));
+  }
+
   async function submitClient(event) {
     event.preventDefault();
     await onCreateClient(clientForm);
@@ -95,6 +145,50 @@ export default function AdminPanel({
     event.preventDefault();
     await onCreateUser(userForm);
     setUserForm(EMPTY_USER);
+  }
+
+  async function submitPasswordReset(event) {
+    event.preventDefault();
+    await onUpdateUserPassword(passwordResetForm.userId, passwordResetForm.password);
+    setPasswordResetForm(EMPTY_PASSWORD_RESET);
+  }
+
+  function startRouteEdit(route) {
+    setRouteDuplicateId("");
+    setRouteEditId(route.id);
+    setRouteForm({
+      name: route.name || "",
+      clientId: route.clientId ? String(route.clientId) : "",
+      assignedToUserId: route.assignedToUserId ? String(route.assignedToUserId) : "",
+    });
+  }
+
+  function startRouteDuplicate(route) {
+    setRouteEditId("");
+    setRouteDuplicateId(route.id);
+    setRouteForm({
+      name: `${route.name || t.admin.routes.defaultName} - copia`,
+      clientId: route.clientId ? String(route.clientId) : "",
+      assignedToUserId: "",
+    });
+  }
+
+  async function submitRouteForm(event) {
+    event.preventDefault();
+    const payload = {
+      name: routeForm.name,
+      clientId: routeForm.clientId || null,
+      assignedToUserId: routeForm.assignedToUserId || null,
+    };
+
+    if (routeDuplicateId) {
+      await onDuplicateRoute(routeDuplicateId, payload);
+    } else {
+      await onUpdateRoute(routeEditId, payload);
+    }
+
+    setRouteEditId("");
+    setRouteDuplicateId("");
   }
 
   return (
@@ -302,6 +396,42 @@ export default function AdminPanel({
             {t.admin.users.create}
           </button>
         </form>
+
+        <form className="panel admin-form" onSubmit={submitPasswordReset}>
+          <div>
+            <p className="eyebrow">{t.admin.users.securityEyebrow}</p>
+            <h3>{t.admin.users.passwordTitle}</h3>
+          </div>
+          <label>
+            <span>{t.admin.users.user}</span>
+            <select
+              onChange={(event) => updatePasswordResetField("userId", event.target.value)}
+              required
+              value={passwordResetForm.userId}
+            >
+              <option value="">{t.admin.users.selectUser}</option>
+              {(adminData?.users || []).map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.name} - {user.email}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>{t.admin.users.newPassword}</span>
+            <input
+              minLength="6"
+              onChange={(event) => updatePasswordResetField("password", event.target.value)}
+              required
+              type="text"
+              value={passwordResetForm.password}
+            />
+          </label>
+          <p className="admin-help">{t.admin.users.passwordResetHelp}</p>
+          <button className="primary-button" disabled={loading} type="submit">
+            {t.admin.users.updatePassword}
+          </button>
+        </form>
       </div>
 
       <div className="admin-tables-grid">
@@ -388,13 +518,27 @@ export default function AdminPanel({
                     </td>
                     <td>{formatDate(user.createdAt)}</td>
                     <td>
-                      <button
-                        className="secondary-button table-action-button"
-                        onClick={() => onToggleUserStatus(user.id, !user.isActive)}
-                        type="button"
-                      >
-                        {user.isActive ? t.admin.users.disable : t.admin.users.enable}
-                      </button>
+                      <div className="table-actions-stack">
+                        <button
+                          className="secondary-button table-action-button"
+                          onClick={() => onToggleUserStatus(user.id, !user.isActive)}
+                          type="button"
+                        >
+                          {user.isActive ? t.admin.users.disable : t.admin.users.enable}
+                        </button>
+                        <button
+                          className="secondary-button table-action-button"
+                          onClick={() =>
+                            setPasswordResetForm({
+                              userId: String(user.id),
+                              password: "demo1234",
+                            })
+                          }
+                          type="button"
+                        >
+                          {t.admin.users.resetPassword}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -403,6 +547,173 @@ export default function AdminPanel({
           </div>
         </section>
       </div>
+
+      <section className="panel admin-table-card admin-routes-card">
+        <div className="admin-table-head">
+          <div>
+            <p className="eyebrow">{t.admin.routes.eyebrow}</p>
+            <h3>{t.admin.routes.listTitle}</h3>
+          </div>
+          <div className="admin-route-tools">
+            <label className="admin-search-field">
+              <span>{t.admin.search}</span>
+              <input
+                onChange={(event) => setRouteSearch(event.target.value)}
+                placeholder={t.admin.routes.searchPlaceholder}
+                value={routeSearch}
+              />
+            </label>
+            <label className="admin-search-field">
+              <span>{t.admin.routes.companyFilter}</span>
+              <select
+                onChange={(event) => setRouteClientFilter(event.target.value)}
+                value={routeClientFilter}
+              >
+                <option value="">{t.admin.routes.allCompanies}</option>
+                {clientOptions.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              className="secondary-button table-action-button"
+              disabled={routesLoading}
+              onClick={() => onRefreshRoutes()}
+              type="button"
+            >
+              {routesLoading ? t.admin.loading : t.admin.refresh}
+            </button>
+          </div>
+        </div>
+
+        {(routeEditId || routeDuplicateId) && (
+          <form className="route-inline-editor admin-route-editor" onSubmit={submitRouteForm}>
+            <label>
+              <span>{t.admin.routes.name}</span>
+              <input
+                onChange={(event) =>
+                  setRouteForm((current) => ({ ...current, name: event.target.value }))
+                }
+                required
+                value={routeForm.name}
+              />
+            </label>
+            <label>
+              <span>{t.admin.routes.company}</span>
+              <select
+                onChange={(event) =>
+                  setRouteForm((current) => ({
+                    ...current,
+                    clientId: event.target.value,
+                    assignedToUserId: "",
+                  }))
+                }
+                required
+                value={routeForm.clientId}
+              >
+                <option value="">{t.admin.users.selectClient}</option>
+                {clientOptions.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span>{t.admin.routes.assignedUser}</span>
+              <select
+                onChange={(event) =>
+                  setRouteForm((current) => ({
+                    ...current,
+                    assignedToUserId: event.target.value,
+                  }))
+                }
+                value={routeForm.assignedToUserId}
+              >
+                <option value="">{t.saved.noAssignedUser}</option>
+                {routeUserOptions.map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {user.name} - {user.email}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="inline-actions">
+              <button className="primary-button compact" disabled={routesLoading} type="submit">
+                {routeDuplicateId ? t.admin.routes.duplicate : t.admin.routes.save}
+              </button>
+              <button
+                className="secondary-button compact"
+                onClick={() => {
+                  setRouteEditId("");
+                  setRouteDuplicateId("");
+                }}
+                type="button"
+              >
+                {t.admin.routes.cancel}
+              </button>
+            </div>
+          </form>
+        )}
+
+        <div className="admin-table-wrap scrollable route-admin-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>{t.admin.routes.name}</th>
+                <th>{t.admin.routes.company}</th>
+                <th>{t.admin.routes.assignedUser}</th>
+                <th>{t.admin.routes.totalPois}</th>
+                <th>{t.admin.routes.updatedAt}</th>
+                <th>{t.admin.users.actions}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRoutes.map((route) => (
+                <tr key={route.id}>
+                  <td>
+                    <strong>{route.name}</strong>
+                    <br />
+                    <code>{route.publicId}</code>
+                  </td>
+                  <td>{route.clientName || "-"}</td>
+                  <td>{route.assignedUserName || "-"}</td>
+                  <td>{route.totalPois || 0}</td>
+                  <td>{formatDate(route.updatedAt || route.createdAt)}</td>
+                  <td>
+                    <div className="table-actions-stack">
+                      <button
+                        className="secondary-button table-action-button"
+                        onClick={() => startRouteEdit(route)}
+                        type="button"
+                      >
+                        {t.admin.routes.edit}
+                      </button>
+                      <button
+                        className="secondary-button table-action-button"
+                        onClick={() => startRouteDuplicate(route)}
+                        type="button"
+                      >
+                        {t.admin.routes.reuse}
+                      </button>
+                      <button
+                        className="secondary-button table-action-button danger"
+                        onClick={() => onDeleteRoute(route.id)}
+                        type="button"
+                      >
+                        {t.admin.routes.delete}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {!filteredRoutes.length && <p className="empty-state-text">{t.admin.routes.empty}</p>}
+        </div>
+      </section>
     </section>
   );
 }

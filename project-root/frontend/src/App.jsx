@@ -5,8 +5,13 @@ import {
   createAdminClient,
   createAdminUser,
   createCompanyUser,
+  deleteAdminRoute,
+  deleteCompanyRoute,
+  duplicateAdminRoute,
   fetchCategories,
   fetchAdminData,
+  fetchAdminRoutes,
+  fetchCompanyRoutes,
   fetchCompanyUsers,
   fetchCurrentUser,
   fetchHealth,
@@ -18,7 +23,14 @@ import {
   recommendRoute,
   saveRoute,
   setAuthToken,
+  updateAdminRoute,
+  updateAdminUserPassword,
   updateAdminUserStatus,
+  updateCompanyRoute,
+  updateCompanyRouteRecommendation,
+  updateCompanyUser,
+  updateCompanyUserPassword,
+  updateCompanyUserStatus,
 } from "./services/api.js";
 import { translations } from "./i18n/translations.js";
 
@@ -99,6 +111,10 @@ export default function App() {
   const [companyUsersLoading, setCompanyUsersLoading] = useState(false);
   const [assignedRoutes, setAssignedRoutes] = useState([]);
   const [companyUsers, setCompanyUsers] = useState([]);
+  const [companyRoutes, setCompanyRoutes] = useState([]);
+  const [companyRoutesLoading, setCompanyRoutesLoading] = useState(false);
+  const [adminRoutes, setAdminRoutes] = useState([]);
+  const [adminRoutesLoading, setAdminRoutesLoading] = useState(false);
   const [selectedAssignedUserId, setSelectedAssignedUserId] = useState("");
   const [userRoutes, setUserRoutes] = useState(getInitialUserRoutes);
   const [catalogPois, setCatalogPois] = useState([]);
@@ -207,6 +223,14 @@ export default function App() {
 
     if (currentUser.role.code === "client" || currentUser.role.code === "admin") {
       handleLoadCompanyUsers();
+    }
+
+    if (currentUser.role.code === "client") {
+      handleLoadCompanyRoutes();
+    }
+
+    if (currentUser.role.code === "admin") {
+      handleLoadAdminRoutes();
     }
 
     if (currentUser.role.code === "user") {
@@ -386,8 +410,10 @@ export default function App() {
       setCurrentUser(response.user);
       setAppMode(getModeFromUser(response.user));
       setAdminData(null);
+      setAdminRoutes([]);
       setAssignedRoutes([]);
       setCompanyUsers([]);
+      setCompanyRoutes([]);
       setSelectedAssignedUserId("");
       setRouteData(null);
       setSelectedPoi(null);
@@ -404,8 +430,10 @@ export default function App() {
     setAuthToken("");
     setCurrentUser(null);
     setAdminData(null);
+    setAdminRoutes([]);
     setAssignedRoutes([]);
     setCompanyUsers([]);
+    setCompanyRoutes([]);
     setSelectedAssignedUserId("");
     setRouteData(null);
     setSelectedPoi(null);
@@ -477,6 +505,90 @@ export default function App() {
     }
   }
 
+  async function handleUpdateAdminUserPassword(userId, password) {
+    setAdminLoading(true);
+    setAdminMessage("");
+    setError("");
+
+    try {
+      await updateAdminUserPassword(userId, password);
+      const data = await fetchAdminData();
+      setAdminData(data);
+      setAdminMessage(t.admin.users.passwordUpdated);
+    } catch (requestError) {
+      setError(requestError.message || t.admin.users.passwordUpdateError);
+    } finally {
+      setAdminLoading(false);
+    }
+  }
+
+  async function handleLoadAdminRoutes(filters = {}) {
+    setAdminRoutesLoading(true);
+    setError("");
+
+    try {
+      const response = await fetchAdminRoutes(filters);
+      setAdminRoutes(response.items || []);
+    } catch (requestError) {
+      setError(requestError.message || t.admin.routes.loadError);
+      setAdminRoutes([]);
+    } finally {
+      setAdminRoutesLoading(false);
+    }
+  }
+
+  async function handleUpdateAdminRoute(routeId, payload) {
+    setAdminRoutesLoading(true);
+    setAdminMessage("");
+    setError("");
+
+    try {
+      await updateAdminRoute(routeId, payload);
+      await handleLoadAdminRoutes();
+      setAdminMessage(t.admin.routes.updated);
+    } catch (requestError) {
+      setError(requestError.message || t.admin.routes.updateError);
+    } finally {
+      setAdminRoutesLoading(false);
+    }
+  }
+
+  async function handleDuplicateAdminRoute(routeId, payload) {
+    setAdminRoutesLoading(true);
+    setAdminMessage("");
+    setError("");
+
+    try {
+      await duplicateAdminRoute(routeId, payload);
+      await Promise.all([handleLoadAdminRoutes(), handleLoadAdminData()]);
+      setAdminMessage(t.admin.routes.duplicated);
+    } catch (requestError) {
+      setError(requestError.message || t.admin.routes.duplicateError);
+    } finally {
+      setAdminRoutesLoading(false);
+    }
+  }
+
+  async function handleDeleteAdminRoute(routeId) {
+    if (!window.confirm(t.admin.routes.deleteConfirm)) {
+      return;
+    }
+
+    setAdminRoutesLoading(true);
+    setAdminMessage("");
+    setError("");
+
+    try {
+      await deleteAdminRoute(routeId);
+      await Promise.all([handleLoadAdminRoutes(), handleLoadAdminData()]);
+      setAdminMessage(t.admin.routes.deleted);
+    } catch (requestError) {
+      setError(requestError.message || t.admin.routes.deleteError);
+    } finally {
+      setAdminRoutesLoading(false);
+    }
+  }
+
   async function handleLoadCompanyUsers() {
     setCompanyUsersLoading(true);
 
@@ -487,6 +599,57 @@ export default function App() {
       setCompanyUsers([]);
     } finally {
       setCompanyUsersLoading(false);
+    }
+  }
+
+  async function handleLoadCompanyRoutes(filters = {}) {
+    setCompanyRoutesLoading(true);
+    setError("");
+
+    try {
+      const response = await fetchCompanyRoutes(filters);
+      setCompanyRoutes(response.items || []);
+    } catch (requestError) {
+      setError(requestError.message || t.companyRoutes.loadError);
+      setCompanyRoutes([]);
+    } finally {
+      setCompanyRoutesLoading(false);
+    }
+  }
+
+  async function handleUpdateCompanyRoute(routeId, payload) {
+    setCompanyRoutesLoading(true);
+    setCompanyMessage("");
+    setError("");
+
+    try {
+      await updateCompanyRoute(routeId, payload);
+      await handleLoadCompanyRoutes();
+      setCompanyMessage(t.companyRoutes.updated);
+    } catch (requestError) {
+      setError(requestError.message || t.companyRoutes.updateError);
+    } finally {
+      setCompanyRoutesLoading(false);
+    }
+  }
+
+  async function handleDeleteCompanyRoute(routeId) {
+    if (!window.confirm(t.companyRoutes.deleteConfirm)) {
+      return;
+    }
+
+    setCompanyRoutesLoading(true);
+    setCompanyMessage("");
+    setError("");
+
+    try {
+      await deleteCompanyRoute(routeId);
+      await handleLoadCompanyRoutes();
+      setCompanyMessage(t.companyRoutes.deleted);
+    } catch (requestError) {
+      setError(requestError.message || t.companyRoutes.deleteError);
+    } finally {
+      setCompanyRoutesLoading(false);
     }
   }
 
@@ -502,6 +665,57 @@ export default function App() {
       setCompanyMessage(t.companyUsers.created);
     } catch (requestError) {
       setError(requestError.message || t.companyUsers.createError);
+    } finally {
+      setCompanyUsersLoading(false);
+    }
+  }
+
+  async function handleUpdateCompanyUser(userId, payload) {
+    setCompanyUsersLoading(true);
+    setCompanyMessage("");
+    setError("");
+
+    try {
+      await updateCompanyUser(userId, payload);
+      const response = await fetchCompanyUsers();
+      setCompanyUsers(response.items || []);
+      setCompanyMessage(t.companyUsers.updated);
+    } catch (requestError) {
+      setError(requestError.message || t.companyUsers.updateError);
+    } finally {
+      setCompanyUsersLoading(false);
+    }
+  }
+
+  async function handleToggleCompanyUserStatus(userId, isActive) {
+    setCompanyUsersLoading(true);
+    setCompanyMessage("");
+    setError("");
+
+    try {
+      await updateCompanyUserStatus(userId, isActive);
+      const response = await fetchCompanyUsers();
+      setCompanyUsers(response.items || []);
+      setCompanyMessage(isActive ? t.companyUsers.enabled : t.companyUsers.disabled);
+    } catch (requestError) {
+      setError(requestError.message || t.companyUsers.statusError);
+    } finally {
+      setCompanyUsersLoading(false);
+    }
+  }
+
+  async function handleUpdateCompanyUserPassword(userId, password) {
+    setCompanyUsersLoading(true);
+    setCompanyMessage("");
+    setError("");
+
+    try {
+      await updateCompanyUserPassword(userId, password);
+      const response = await fetchCompanyUsers();
+      setCompanyUsers(response.items || []);
+      setCompanyMessage(t.companyUsers.passwordUpdated);
+    } catch (requestError) {
+      setError(requestError.message || t.companyUsers.passwordUpdateError);
     } finally {
       setCompanyUsersLoading(false);
     }
@@ -664,8 +878,44 @@ export default function App() {
         assignedToUserId: selectedAssignedUserId || null,
       });
       setSavedRouteInfo(saved);
+      if (currentUser?.role?.code === "client") {
+        handleLoadCompanyRoutes();
+      }
+      if (currentUser?.role?.code === "admin") {
+        handleLoadAdminRoutes();
+      }
     } catch (requestError) {
       setError(requestError.message || t.saved.saveError);
+    } finally {
+      setSavingRoute(false);
+    }
+  }
+
+  async function handleUpdateLoadedRoute() {
+    if (!routeData?.route?.length || !savedRouteInfo?.routeId) {
+      setError(t.saved.noLoadedEditableRoute);
+      return;
+    }
+
+    setSavingRoute(true);
+    setError("");
+    setCompanyMessage("");
+
+    try {
+      const updated = await updateCompanyRouteRecommendation(savedRouteInfo.routeId, {
+        name: routeData.name,
+        recommendation: routeData,
+        navigation: routeData.navigation || null,
+      });
+      setSavedRouteInfo({
+        ...savedRouteInfo,
+        ...updated,
+        message: t.saved.updated,
+      });
+      await handleLoadCompanyRoutes();
+      setCompanyMessage(t.saved.updated);
+    } catch (requestError) {
+      setError(requestError.message || t.saved.updateError);
     } finally {
       setSavingRoute(false);
     }
@@ -775,7 +1025,6 @@ export default function App() {
     });
 
     setRouteData(editedRoute);
-    setSavedRouteInfo(null);
     setSelectedPoi(editedRoute.route[0] || null);
   }
 
@@ -841,11 +1090,15 @@ export default function App() {
       adminData={adminData}
       adminLoading={adminLoading}
       adminMessage={adminMessage}
+      adminRoutes={adminRoutes}
+      adminRoutesLoading={adminRoutesLoading}
       assignedRoutes={assignedRoutes}
       categories={categories}
       catalogLoading={catalogLoading}
       catalogPois={catalogPois}
       companyMessage={companyMessage}
+      companyRoutes={companyRoutes}
+      companyRoutesLoading={companyRoutesLoading}
       companyUsers={companyUsers}
       companyUsersLoading={companyUsersLoading}
       defaultStart={DEFAULT_START}
@@ -860,8 +1113,13 @@ export default function App() {
       onCreateAdminClient={handleCreateAdminClient}
       onCreateAdminUser={handleCreateAdminUser}
       onCreateCompanyUser={handleCreateCompanyUser}
+      onDeleteAdminRoute={handleDeleteAdminRoute}
+      onDeleteCompanyRoute={handleDeleteCompanyRoute}
+      onDuplicateAdminRoute={handleDuplicateAdminRoute}
       onLanguageChange={setLanguage}
       onLoadAdminData={handleLoadAdminData}
+      onLoadAdminRoutes={handleLoadAdminRoutes}
+      onLoadCompanyRoutes={handleLoadCompanyRoutes}
       onLoadMyRoutes={handleLoadMyRoutes}
       onLoadCompanyUsers={handleLoadCompanyUsers}
       onLoadSavedRoute={handleLoadSavedRoute}
@@ -882,6 +1140,13 @@ export default function App() {
       onSubmit={handleSubmit}
       onThemeChange={setTheme}
       onToggleAdminUserStatus={handleToggleAdminUserStatus}
+      onToggleCompanyUserStatus={handleToggleCompanyUserStatus}
+      onUpdateAdminUserPassword={handleUpdateAdminUserPassword}
+      onUpdateAdminRoute={handleUpdateAdminRoute}
+      onUpdateCompanyRoute={handleUpdateCompanyRoute}
+      onUpdateCompanyUser={handleUpdateCompanyUser}
+      onUpdateCompanyUserPassword={handleUpdateCompanyUserPassword}
+      onUpdateLoadedRoute={handleUpdateLoadedRoute}
       onLogout={handleLogout}
       routeData={routeData}
       routeDisplayMode={routeDisplayMode}

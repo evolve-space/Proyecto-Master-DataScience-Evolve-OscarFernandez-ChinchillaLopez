@@ -5,6 +5,18 @@ function toJson(value) {
   return JSON.stringify(value ?? null);
 }
 
+function parseJsonValue(value) {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
 function numberOrNull(value) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
@@ -54,6 +66,128 @@ function buildRouteName(body, recommendation) {
 
   const totalPois = recommendation.summary?.totalPois || recommendation.route?.length || 0;
   return `Ruta Barcelona - ${totalPois} POIs`;
+}
+
+function assertValidRouteId(routeId) {
+  const parsedRouteId = intOrNull(routeId);
+
+  if (!parsedRouteId) {
+    const error = new Error("Ruta no valida.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return parsedRouteId;
+}
+
+function getClientIdForScope(currentUser, explicitClientId = null) {
+  if (currentUser?.role?.code === "client") {
+    return currentUser.client?.id || null;
+  }
+
+  return intOrNull(explicitClientId);
+}
+
+async function getRouteOwnership(connection, routeId) {
+  const [rows] = await connection.execute(
+    `
+      SELECT
+        id,
+        public_id AS publicId,
+        client_id AS clientId,
+        assigned_to_user_id AS assignedToUserId
+      FROM routes
+      WHERE id = :routeId
+      LIMIT 1
+    `,
+    { routeId },
+  );
+
+  if (!rows.length) {
+    const error = new Error("Ruta guardada no encontrada.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return rows[0];
+}
+
+function assertCompanyCanManageRoute(route, currentUser) {
+  if (
+    currentUser?.role?.code === "client" &&
+    Number(route.clientId) !== Number(currentUser.client?.id)
+  ) {
+    const error = new Error("No puedes gestionar rutas de otra empresa.");
+    error.statusCode = 403;
+    throw error;
+  }
+}
+
+function buildRouteListWhere({ scope, currentUser, filters = {} }) {
+  const clauses = [];
+  const params = {};
+
+  if (scope === "company") {
+    clauses.push("rt.client_id = :clientId");
+    params.clientId = currentUser.client?.id || null;
+  } else if (filters.clientId) {
+    clauses.push("rt.client_id = :clientId");
+    params.clientId = intOrNull(filters.clientId);
+  }
+
+  if (filters.assignedToUserId) {
+    clauses.push("rt.assigned_to_user_id = :assignedToUserId");
+    params.assignedToUserId = intOrNull(filters.assignedToUserId);
+  }
+
+  if (filters.q) {
+    clauses.push(
+      "(rt.name LIKE :query OR rt.public_id LIKE :query OR c.name LIKE :query OR u.name LIKE :query OR u.email LIKE :query)",
+    );
+    params.query = `%${String(filters.q).trim()}%`;
+  }
+
+  return {
+    where: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "",
+    params,
+  };
+}
+
+async function getRouteList(scope, currentUser, filters = {}) {
+  const pool = getDbPool();
+  const { where, params } = buildRouteListWhere({ scope, currentUser, filters });
+  const [rows] = await pool.execute(
+    `
+      SELECT
+        rt.id,
+        rt.public_id AS publicId,
+        rt.name,
+        rt.status,
+        rt.generation_mode AS generationMode,
+        rt.client_id AS clientId,
+        c.name AS clientName,
+        rt.assigned_to_user_id AS assignedToUserId,
+        u.name AS assignedUserName,
+        u.email AS assignedUserEmail,
+        rt.total_pois AS totalPois,
+        rt.requested_pois AS requestedPois,
+        rt.total_distance_km AS totalDistanceKm,
+        rt.total_visit_minutes AS totalVisitMinutes,
+        rt.total_travel_minutes AS totalTravelMinutes,
+        rt.total_experience_minutes AS totalExperienceMinutes,
+        rt.created_at AS createdAt,
+        rt.updated_at AS updatedAt
+      FROM routes rt
+      LEFT JOIN clients c ON c.id = rt.client_id
+      LEFT JOIN users u ON u.id = rt.assigned_to_user_id
+      ${where}
+      ORDER BY rt.updated_at DESC, rt.id DESC
+      LIMIT 300
+    `,
+    params,
+  );
+
+  return rows;
 }
 
 async function insertRoutePois(connection, routeId, route) {
@@ -277,6 +411,325 @@ export async function saveGeneratedRoute(body, currentUser = null) {
       routeId,
       totalPois: recommendation.route.length,
       message: "Ruta guardada correctamente.",
+    };
+  });
+}
+
+export async function getRoutesForAdmin(filters = {}) {
+  return getRouteList("admin", null, filters);
+}
+
+export async function getRoutesForCompany(currentUser, filters = {}) {
+  if (!currentUser?.client?.id) {
+    const error = new Error("La cuenta de empresa no esta asociada a ninguna empresa.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return getRouteList("company", currentUser, filters);
+}
+
+export async function updateRouteMetadata(routeId, payload = {}, currentUser = null, options = {}) {
+  const parsedRouteId = assertValidRouteId(routeId);
+  const nextName = String(payload.name || "").trim();
+  const nextClientId = getClientIdForScope(currentUser, payload.clientId);
+
+  return withTransaction(async (connection) => {
+    const route = await getRouteOwnership(connection, parsedRouteId);
+    const targetClientId = nextClientId || route.clientId;
+
+    if (!options.admin) {
+      assertCompanyCanManageRoute(route, currentUser);
+    }
+
+    const shouldUpdateAssignedUser = Object.hasOwn(payload, "assignedToUserId");
+    const assignedToUserId = shouldUpdateAssignedUser
+      ? await validateAssignedUser(
+          connection,
+          payload.assignedToUserId,
+          options.admin
+            ? { role: { code: "admin" }, client: targetClientId ? { id: targetClientId } : null }
+            : currentUser,
+        )
+      : route.assignedToUserId;
+
+    if (assignedToUserId && targetClientId) {
+      const [users] = await connection.execute(
+        "SELECT client_id AS clientId FROM users WHERE id = :userId LIMIT 1",
+        { userId: assignedToUserId },
+      );
+
+      if (users.length && Number(users[0].clientId) !== Number(targetClientId)) {
+        const error = new Error("El usuario asignado debe pertenecer a la empresa seleccionada.");
+        error.statusCode = 400;
+        throw error;
+      }
+    }
+
+    await connection.execute(
+      `
+        UPDATE routes
+        SET
+          name = COALESCE(:name, name),
+          client_id = COALESCE(:clientId, client_id),
+          assigned_to_user_id = :assignedToUserId
+        WHERE id = :routeId
+      `,
+      {
+        routeId: parsedRouteId,
+        name: nextName || null,
+        clientId: nextClientId,
+        assignedToUserId,
+      },
+    );
+
+    const [updatedRows] = await connection.execute(
+      `
+        SELECT
+          id,
+          public_id AS publicId,
+          name,
+          client_id AS clientId,
+          assigned_to_user_id AS assignedToUserId,
+          updated_at AS updatedAt
+        FROM routes
+        WHERE id = :routeId
+      `,
+      { routeId: parsedRouteId },
+    );
+
+    return updatedRows[0];
+  });
+}
+
+export async function deleteSavedRoute(routeId, currentUser = null, options = {}) {
+  const parsedRouteId = assertValidRouteId(routeId);
+
+  return withTransaction(async (connection) => {
+    const route = await getRouteOwnership(connection, parsedRouteId);
+
+    if (!options.admin) {
+      assertCompanyCanManageRoute(route, currentUser);
+    }
+
+    await connection.execute("DELETE FROM routes WHERE id = :routeId", {
+      routeId: parsedRouteId,
+    });
+
+    return {
+      id: parsedRouteId,
+      publicId: route.publicId,
+      deleted: true,
+    };
+  });
+}
+
+export async function duplicateSavedRoute(routeId, payload = {}, currentUser = null, options = {}) {
+  const parsedRouteId = assertValidRouteId(routeId);
+
+  return withTransaction(async (connection) => {
+    const sourceRoute = await getRouteOwnership(connection, parsedRouteId);
+
+    if (!options.admin) {
+      assertCompanyCanManageRoute(sourceRoute, currentUser);
+    }
+
+    const [routes] = await connection.execute(
+      "SELECT * FROM routes WHERE id = :routeId LIMIT 1",
+      { routeId: parsedRouteId },
+    );
+
+    if (!routes.length) {
+      const error = new Error("Ruta guardada no encontrada.");
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const source = routes[0];
+    const publicId = randomUUID();
+    const targetClientId = getClientIdForScope(currentUser, payload.clientId) || source.client_id;
+    const assignedToUserId = await validateAssignedUser(
+      connection,
+      payload.assignedToUserId,
+      options.admin
+        ? { role: { code: "admin" }, client: targetClientId ? { id: targetClientId } : null }
+        : currentUser,
+    );
+    const name = String(payload.name || "").trim() || `${source.name} (copia)`;
+
+    const [result] = await connection.execute(
+      `
+        INSERT INTO routes (
+          public_id,
+          name,
+          status,
+          generation_mode,
+          created_by_user_id,
+          assigned_to_user_id,
+          client_id,
+          start_latitude,
+          start_longitude,
+          total_pois,
+          requested_pois,
+          total_distance_km,
+          total_visit_minutes,
+          total_travel_minutes,
+          total_experience_minutes,
+          avg_candidate_score,
+          avg_similarity_score,
+          preferences_json,
+          summary_json,
+          route_json,
+          navigation_json,
+          model_meta_json
+        )
+        VALUES (
+          :publicId,
+          :name,
+          :status,
+          :generationMode,
+          :createdByUserId,
+          :assignedToUserId,
+          :clientId,
+          :startLatitude,
+          :startLongitude,
+          :totalPois,
+          :requestedPois,
+          :totalDistanceKm,
+          :totalVisitMinutes,
+          :totalTravelMinutes,
+          :totalExperienceMinutes,
+          :avgCandidateScore,
+          :avgSimilarityScore,
+          CAST(:preferencesJson AS JSON),
+          CAST(:summaryJson AS JSON),
+          CAST(:routeJson AS JSON),
+          CAST(:navigationJson AS JSON),
+          CAST(:modelMetaJson AS JSON)
+        )
+      `,
+      {
+        publicId,
+        name,
+        status: source.status,
+        generationMode: source.generation_mode,
+        createdByUserId: currentUser?.id || source.created_by_user_id,
+        assignedToUserId,
+        clientId: targetClientId,
+        startLatitude: source.start_latitude,
+        startLongitude: source.start_longitude,
+        totalPois: source.total_pois,
+        requestedPois: source.requested_pois,
+        totalDistanceKm: source.total_distance_km,
+        totalVisitMinutes: source.total_visit_minutes,
+        totalTravelMinutes: source.total_travel_minutes,
+        totalExperienceMinutes: source.total_experience_minutes,
+        avgCandidateScore: source.avg_candidate_score,
+        avgSimilarityScore: source.avg_similarity_score,
+        preferencesJson: toJson(parseJsonValue(source.preferences_json)),
+        summaryJson: toJson(parseJsonValue(source.summary_json)),
+        routeJson: toJson(parseJsonValue(source.route_json)),
+        navigationJson: toJson(parseJsonValue(source.navigation_json)),
+        modelMetaJson: toJson(parseJsonValue(source.model_meta_json)),
+      },
+    );
+
+    const [pois] = await connection.execute(
+      "SELECT poi_data_json AS poiData FROM route_pois WHERE route_id = :routeId ORDER BY route_position ASC",
+      { routeId: parsedRouteId },
+    );
+    await insertRoutePois(
+      connection,
+      result.insertId,
+      pois.map((poi) => parseJsonValue(poi.poiData)).filter(Boolean),
+    );
+
+    return {
+      routeId: result.insertId,
+      publicId,
+      name,
+      message: "Ruta duplicada correctamente.",
+    };
+  });
+}
+
+export async function updateSavedRouteRecommendation(routeId, body = {}, currentUser = null) {
+  const parsedRouteId = assertValidRouteId(routeId);
+  const recommendation = getRecommendationFromBody(body || {});
+  validateRecommendation(recommendation);
+
+  const startLocation = getStartLocation(recommendation);
+  const summary = recommendation.summary || {};
+  const meta = recommendation.meta || {};
+  const navigation = body.navigation || recommendation.navigation || null;
+  const totalTravelMinutes = numberOrNull(
+    navigation?.durationMinutes || summary.totalTravelMinutes,
+  );
+  const totalVisitMinutes = numberOrNull(summary.totalVisitMinutes);
+  const totalExperienceMinutes =
+    totalVisitMinutes !== null && totalTravelMinutes !== null
+      ? totalVisitMinutes + totalTravelMinutes
+      : numberOrNull(summary.totalExperienceMinutes);
+
+  return withTransaction(async (connection) => {
+    const route = await getRouteOwnership(connection, parsedRouteId);
+    assertCompanyCanManageRoute(route, currentUser);
+
+    await connection.execute(
+      `
+        UPDATE routes
+        SET
+          name = COALESCE(:name, name),
+          generation_mode = :generationMode,
+          start_latitude = :startLatitude,
+          start_longitude = :startLongitude,
+          total_pois = :totalPois,
+          requested_pois = :requestedPois,
+          total_distance_km = :totalDistanceKm,
+          total_visit_minutes = :totalVisitMinutes,
+          total_travel_minutes = :totalTravelMinutes,
+          total_experience_minutes = :totalExperienceMinutes,
+          avg_candidate_score = :avgCandidateScore,
+          avg_similarity_score = :avgSimilarityScore,
+          preferences_json = CAST(:preferencesJson AS JSON),
+          summary_json = CAST(:summaryJson AS JSON),
+          route_json = CAST(:routeJson AS JSON),
+          navigation_json = CAST(:navigationJson AS JSON),
+          model_meta_json = CAST(:modelMetaJson AS JSON)
+        WHERE id = :routeId
+      `,
+      {
+        routeId: parsedRouteId,
+        name: String(body.name || recommendation.name || "").trim() || null,
+        generationMode: meta.mode || "edited-company-route",
+        startLatitude: startLocation.lat,
+        startLongitude: startLocation.lng,
+        totalPois: recommendation.route.length,
+        requestedPois: intOrNull(summary.requestedPois || recommendation.preferences?.maxPois),
+        totalDistanceKm: numberOrNull(summary.totalDistanceKm),
+        totalVisitMinutes,
+        totalTravelMinutes,
+        totalExperienceMinutes,
+        avgCandidateScore: numberOrNull(summary.avgCandidateScore),
+        avgSimilarityScore: numberOrNull(summary.avgSimilarityScore),
+        preferencesJson: toJson(recommendation.preferences || {}),
+        summaryJson: toJson(summary),
+        routeJson: toJson(recommendation),
+        navigationJson: toJson(navigation),
+        modelMetaJson: toJson(meta),
+      },
+    );
+
+    await connection.execute("DELETE FROM route_pois WHERE route_id = :routeId", {
+      routeId: parsedRouteId,
+    });
+    await insertRoutePois(connection, parsedRouteId, recommendation.route);
+
+    return {
+      routeId: parsedRouteId,
+      publicId: route.publicId,
+      totalPois: recommendation.route.length,
+      message: "Ruta actualizada correctamente.",
     };
   });
 }

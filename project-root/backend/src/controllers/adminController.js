@@ -3,6 +3,7 @@ import {
   createUser,
   getAdminOverview,
   setUserActiveStatus,
+  updateUserPassword,
 } from "../services/adminService.js";
 
 export async function getAdminPanelData(req, res) {
@@ -23,4 +24,12 @@ export async function postAdminUser(req, res) {
 export async function patchAdminUserStatus(req, res) {
   const user = await setUserActiveStatus(req.params.userId, req.body?.isActive);
   res.json(user);
+}
+
+export async function patchAdminUserPassword(req, res) {
+  const user = await updateUserPassword(req.params.userId, req.body?.password);
+  res.json({
+    ...user,
+    message: "Password actualizada correctamente.",
+  });
 }

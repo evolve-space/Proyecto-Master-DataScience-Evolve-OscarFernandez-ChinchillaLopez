@@ -455,6 +455,37 @@ select {
   min-height: 46px;
 }
 
+.password-input-wrap {
+  position: relative;
+  display: grid;
+}
+
+.password-input-wrap input {
+  padding-right: 58px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  display: inline-grid;
+  width: 40px;
+  height: 34px;
+  min-height: 34px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel-strong) 86%, transparent);
+  color: var(--text);
+  transform: translateY(-50%);
+}
+
+.password-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .login-demo-box {
   display: grid;
   gap: 6px;
@@ -1062,6 +1093,13 @@ select {
   padding: 11px 18px;
 }
 
+.table-actions-stack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
 .admin-help {
   margin: -4px 0 0;
   font-size: 0.88rem;
@@ -1094,6 +1132,22 @@ select {
   color: var(--muted);
   font-size: 0.82rem;
   font-weight: 800;
+}
+
+.admin-route-tools {
+  display: flex;
+  align-items: end;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.admin-routes-card {
+  margin-top: 16px;
+}
+
+.route-admin-scroll {
+  max-height: 440px;
 }
 
 .admin-table-wrap {
@@ -1196,6 +1250,11 @@ html[data-theme="light"] .admin-linked-user-box {
   gap: 14px;
 }
 
+.company-routes-panel {
+  display: grid;
+  gap: 14px;
+}
+
 .company-users-hero {
   display: flex;
   justify-content: space-between;
@@ -1215,6 +1274,106 @@ html[data-theme="light"] .admin-linked-user-box {
 
 .company-users-hero p:not(.eyebrow) {
   color: var(--muted);
+}
+
+.route-manager-filters,
+.route-inline-editor {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) minmax(180px, 0.8fr);
+  gap: 10px;
+  align-items: end;
+}
+
+.route-inline-editor {
+  grid-template-columns: minmax(220px, 1.2fr) minmax(180px, 0.8fr) auto;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(184, 108, 255, 0.08), transparent 46%),
+    var(--panel-strong);
+}
+
+.admin-route-editor {
+  grid-template-columns: minmax(220px, 1.1fr) minmax(180px, 0.8fr) minmax(180px, 0.8fr) auto;
+  margin-bottom: 4px;
+}
+
+.inline-actions {
+  display: flex;
+  gap: 8px;
+  align-items: end;
+  flex-wrap: wrap;
+}
+
+.primary-button.compact,
+.secondary-button.compact,
+.table-action-button {
+  min-height: 34px;
+  padding: 7px 10px;
+  font-size: 0.88rem;
+}
+
+.secondary-button.danger,
+.table-action-button.danger {
+  border-color: color-mix(in srgb, #ff6b8a 55%, var(--line));
+  color: #ffb4c3;
+}
+
+[data-theme="light"] .secondary-button.danger,
+[data-theme="light"] .table-action-button.danger {
+  color: #8f1f39;
+}
+
+.route-manager-list {
+  display: grid;
+  gap: 10px;
+  max-height: 520px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.route-manager-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(184, 108, 255, 0.07), transparent 42%),
+    var(--panel-strong);
+}
+
+.route-manager-card strong,
+.route-manager-card span,
+.route-manager-card code,
+.route-manager-card small {
+  display: block;
+}
+
+.route-manager-card span,
+.route-manager-card small {
+  color: var(--muted);
+}
+
+.route-manager-card code {
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+
+.route-manager-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.success-panel.compact,
+.empty-state-text {
+  margin: 0;
 }
 
 .company-users-grid {
@@ -1254,6 +1413,21 @@ html[data-theme="light"] .admin-linked-user-box {
 .company-user-card span,
 .company-user-card small {
   color: var(--muted);
+}
+
+.company-user-management {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.company-user-inline-form {
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
+  position: sticky;
+  top: 0;
+  z-index: 2;
 }
 
 .route-editor-panel h2,
@@ -2421,6 +2595,38 @@ html[data-theme="light"] .leaflet-tooltip-top:before {
   .company-users-hero {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .admin-route-tools,
+  .route-manager-filters,
+  .route-inline-editor,
+  .admin-route-editor,
+  .company-user-inline-form {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-route-tools {
+    display: grid;
+    width: 100%;
+  }
+
+  .route-manager-card {
+    grid-template-columns: 1fr;
+  }
+
+  .route-manager-actions,
+  .inline-actions {
+    justify-content: stretch;
+  }
+
+  .route-manager-actions button,
+  .inline-actions button,
+  .company-user-management button {
+    flex: 1 1 140px;
+  }
+
+  .company-user-management {
+    justify-content: stretch;
   }
 
   .admin-stats-grid {

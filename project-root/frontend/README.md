@@ -5,9 +5,11 @@ Frontend React de Barcelona POIs.
 Su funcion es ofrecer la interfaz web para:
 
 - administrar empresas y usuarios
+- gestionar rutas guardadas desde administracion
 - generar rutas inteligentes
 - construir rutas manuales
 - editar rutas
+- gestionar rutas guardadas de empresa por usuario final
 - cargar rutas como usuario final
 - visualizar rutas y POIs en mapa
 - mostrar descripciones turisticas enriquecidas si el backend las devuelve
@@ -77,7 +79,10 @@ Panel para administracion:
 - crear usuarios
 - asignar usuario a empresa
 - activar/desactivar usuarios
+- cambiar la password de un usuario cuando la olvida
 - buscadores de empresas y usuarios
+- tabla global de rutas guardadas con buscador y filtro por empresa
+- renombrar, reasignar, duplicar y eliminar rutas
 - tablas con scroll interno
 - responsive para desktop, tablet y movil
 
@@ -85,13 +90,14 @@ Los datos de usuario conectado vienen del login JWT mediante `/api/auth/me`.
 
 ### Empresa
 
-Incluye tres herramientas:
+Incluye herramientas separadas:
 
 ```text
 Generador inteligente
 Constructor manual
 Editor de ruta
 Usuarios
+Rutas
 ```
 
 Generador inteligente:
@@ -113,12 +119,25 @@ Editor de ruta:
 - reordenar POIs
 - anadir POIs desde catalogo
 - recalcular resumen basico
+- actualizar una ruta guardada cargada desde la BDD sin crear una copia nueva
 
 Usuarios:
 
 - crear usuarios finales de la empresa
 - buscar/listar usuarios finales
+- editar nombre y email
+- activar/desactivar acceso del usuario
+- resetear password si la pierde
 - usar esos usuarios en el selector de asignacion al guardar una ruta
+
+Rutas:
+
+- listar rutas guardadas de la empresa
+- filtrar por usuario final
+- buscar por nombre, codigo o usuario
+- renombrar y reasignar rutas
+- eliminar rutas
+- abrir una ruta en el editor para modificarla
 
 ### Usuario
 
@@ -149,12 +168,21 @@ recommendRoute
 saveRoute
 fetchSavedRoute
 fetchMyRoutes
+fetchCompanyRoutes
+updateCompanyRoute
+updateCompanyRouteRecommendation
+deleteCompanyRoute
 fetchCompanyUsers
 createCompanyUser
 fetchAdminData
 createAdminClient
 createAdminUser
+fetchAdminRoutes
+updateAdminRoute
+duplicateAdminRoute
+deleteAdminRoute
 updateAdminUserStatus
+updateAdminUserPassword
 fetchStreetRoute
 ```
 
@@ -226,11 +254,13 @@ El frontend ya esta conectado con:
 - recomendador Python
 - MySQL para rutas/admin
 - MySQL para usuarios finales y rutas asignadas
+- gestion de rutas guardadas desde Empresa
+- gestion global de rutas desde Admin
 - descripciones IA de POIs generadas/cacheadas por backend cuando Gemini esta configurado
 - textos de POI ya normalizados por backend para evitar etiquetas tecnicas en el detalle
 - OSRM para trazado peatonal
 
-Siguiente paso:
+Siguiente paso posible:
 
-- mejorar la gestion/listado de rutas guardadas desde Empresa
-- completar permisos por rol en todos los flujos privados
+- anadir auditoria historica de cambios sobre rutas
+- mejorar permisos finos si se desplegara como producto real

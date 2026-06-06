@@ -6,17 +6,22 @@ import PoiCatalog from "../components/PoiCatalog.jsx";
 import RouteEditor from "../components/RouteEditor.jsx";
 import AdminPanel from "../components/AdminPanel.jsx";
 import CompanyUsersPanel from "../components/CompanyUsersPanel.jsx";
+import CompanyRoutesPanel from "../components/CompanyRoutesPanel.jsx";
 import appLogo from "../assets/icono_web.png";
 
 export default function HomePage({
   adminData,
   adminLoading,
   adminMessage,
+  adminRoutes,
+  adminRoutesLoading,
   assignedRoutes,
   categories,
   catalogLoading,
   catalogPois,
   companyMessage,
+  companyRoutes,
+  companyRoutesLoading,
   companyUsers,
   companyUsersLoading,
   defaultStart,
@@ -32,8 +37,13 @@ export default function HomePage({
   onCreateAdminClient,
   onCreateAdminUser,
   onCreateCompanyUser,
+  onDeleteAdminRoute,
+  onDeleteCompanyRoute,
+  onDuplicateAdminRoute,
   onLanguageChange,
   onLoadAdminData,
+  onLoadAdminRoutes,
+  onLoadCompanyRoutes,
   onLoadCompanyUsers,
   onLoadMyRoutes,
   onLoadSavedRoute,
@@ -50,10 +60,17 @@ export default function HomePage({
   onAssignedUserChange,
   onSaveUserRoute,
   onSaveRoute,
+  onUpdateLoadedRoute,
   onBuildManualRoute,
   onSubmit,
   onThemeChange,
   onToggleAdminUserStatus,
+  onToggleCompanyUserStatus,
+  onUpdateAdminRoute,
+  onUpdateAdminUserPassword,
+  onUpdateCompanyRoute,
+  onUpdateCompanyUser,
+  onUpdateCompanyUserPassword,
   onLogout,
   routeData,
   routeDisplayMode,
@@ -77,6 +94,7 @@ export default function HomePage({
   const isManualTool = isCompanyMode && companyTool === "manual";
   const isEditorTool = isCompanyMode && companyTool === "editor";
   const isCompanyUsersTool = isCompanyMode && companyTool === "users";
+  const isCompanyRoutesTool = isCompanyMode && companyTool === "routes";
   const layoutMode = isSmartTool
     ? sidebarOpen
       ? "sidebar-open"
@@ -95,6 +113,11 @@ export default function HomePage({
     if (routeCode.trim()) {
       onLoadSavedRoute(routeCode.trim());
     }
+  }
+
+  async function openCompanyRouteInEditor(publicId) {
+    await onLoadSavedRoute(publicId);
+    setCompanyTool("editor");
   }
 
   return (
@@ -341,6 +364,13 @@ export default function HomePage({
                 >
                   {t.companyTools.users}
                 </button>
+                <button
+                  className={companyTool === "routes" ? "active" : ""}
+                  onClick={() => setCompanyTool("routes")}
+                  type="button"
+                >
+                  {t.companyTools.routes}
+                </button>
               </div>
               <p>{t.companyTools.description[companyTool]}</p>
             </section>
@@ -354,7 +384,14 @@ export default function HomePage({
               onCreateClient={onCreateAdminClient}
               onCreateUser={onCreateAdminUser}
               onRefresh={onLoadAdminData}
+              onDeleteRoute={onDeleteAdminRoute}
+              onDuplicateRoute={onDuplicateAdminRoute}
+              onRefreshRoutes={onLoadAdminRoutes}
+              onUpdateRoute={onUpdateAdminRoute}
               onToggleUserStatus={onToggleAdminUserStatus}
+              onUpdateUserPassword={onUpdateAdminUserPassword}
+              routes={adminRoutes}
+              routesLoading={adminRoutesLoading}
               t={t}
             />
           )}
@@ -515,12 +552,29 @@ export default function HomePage({
                   message={companyMessage}
                   onCreateUser={onCreateCompanyUser}
                   onRefresh={onLoadCompanyUsers}
+                  onToggleUserStatus={onToggleCompanyUserStatus}
+                  onUpdateUser={onUpdateCompanyUser}
+                  onUpdateUserPassword={onUpdateCompanyUserPassword}
                   t={t}
                   users={companyUsers}
                 />
               )}
 
-              {!isCompanyUsersTool && visibleRouteData ? (
+              {isCompanyRoutesTool && (
+                <CompanyRoutesPanel
+                  loading={companyRoutesLoading}
+                  message={companyMessage}
+                  onDeleteRoute={onDeleteCompanyRoute}
+                  onEditRoute={openCompanyRouteInEditor}
+                  onRefresh={onLoadCompanyRoutes}
+                  onUpdateRoute={onUpdateCompanyRoute}
+                  routes={companyRoutes}
+                  t={t}
+                  users={companyUsers}
+                />
+              )}
+
+              {!isCompanyUsersTool && !isCompanyRoutesTool && visibleRouteData ? (
                 <section className="panel route-overview">
                   <div className="route-overview-heading">
                     <p className="eyebrow">{t.overview.eyebrow}</p>
@@ -573,7 +627,7 @@ export default function HomePage({
                             value={selectedAssignedUserId}
                           >
                             <option value="">{t.saved.noAssignedUser}</option>
-                            {companyUsers.map((user) => (
+                            {companyUsers.filter((user) => user.isActive).map((user) => (
                               <option key={user.id} value={user.id}>
                                 {user.name} - {user.email}
                               </option>
@@ -593,6 +647,16 @@ export default function HomePage({
                       >
                         {savingRoute ? t.saved.saving : t.saved.save}
                       </button>
+                      {isEditorTool && savedRouteInfo?.routeId && (
+                        <button
+                          className="secondary-button"
+                          disabled={savingRoute}
+                          onClick={onUpdateLoadedRoute}
+                          type="button"
+                        >
+                          {savingRoute ? t.saved.saving : t.saved.updateLoaded}
+                        </button>
+                      )}
                       {savedRouteInfo?.publicId && (
                         <div className="saved-route-box">
                           <span>{t.saved.success}</span>
@@ -609,7 +673,7 @@ export default function HomePage({
                 </section>
               ) : null}
 
-              {!isCompanyUsersTool && (
+              {!isCompanyUsersTool && !isCompanyRoutesTool && (
               <RouteMap
                 onPoiSelect={onPoiSelect}
                 onRouteDisplayModeChange={onRouteDisplayModeChange}
@@ -622,7 +686,7 @@ export default function HomePage({
                 theme={theme}
               />
               )}
-              {!isCompanyUsersTool && visibleRouteData ? (
+              {!isCompanyUsersTool && !isCompanyRoutesTool && visibleRouteData ? (
                 <ResultsSidebar
                   meta={visibleRouteData.meta}
                   onPoiSelect={onPoiSelect}
@@ -631,7 +695,7 @@ export default function HomePage({
                   summary={visibleRouteData.summary}
                   t={t}
                 />
-              ) : !isCompanyUsersTool ? (
+              ) : !isCompanyUsersTool && !isCompanyRoutesTool ? (
                 <section className="panel empty-panel">
                   <p className="eyebrow">{t.empty.eyebrow}</p>
                   <h2>{t.empty.title}</h2>

@@ -11,10 +11,17 @@ export default function CompanyUsersPanel({
   message,
   onCreateUser,
   onRefresh,
+  onToggleUserStatus,
+  onUpdateUser,
+  onUpdateUserPassword,
   t,
   users,
 }) {
   const [form, setForm] = useState(EMPTY_FORM);
+  const [editingUserId, setEditingUserId] = useState("");
+  const [editForm, setEditForm] = useState({ name: "", email: "" });
+  const [passwordUserId, setPasswordUserId] = useState("");
+  const [newPassword, setNewPassword] = useState("demo1234");
   const [search, setSearch] = useState("");
 
   const filteredUsers = useMemo(() => {
@@ -39,6 +46,33 @@ export default function CompanyUsersPanel({
     event.preventDefault();
     await onCreateUser(form);
     setForm(EMPTY_FORM);
+  }
+
+  function startEdit(user) {
+    setPasswordUserId("");
+    setEditingUserId(user.id);
+    setEditForm({
+      name: user.name || "",
+      email: user.email || "",
+    });
+  }
+
+  async function submitEdit(event) {
+    event.preventDefault();
+    await onUpdateUser(editingUserId, editForm);
+    setEditingUserId("");
+  }
+
+  function startPasswordReset(user) {
+    setEditingUserId("");
+    setPasswordUserId(user.id);
+    setNewPassword("demo1234");
+  }
+
+  async function submitPasswordReset(event) {
+    event.preventDefault();
+    await onUpdateUserPassword(passwordUserId, newPassword);
+    setPasswordUserId("");
   }
 
   return (
@@ -110,14 +144,105 @@ export default function CompanyUsersPanel({
           </div>
 
           <div className="company-user-list">
+            {editingUserId && (
+              <form className="route-inline-editor company-user-inline-form" onSubmit={submitEdit}>
+                <label>
+                  <span>{t.admin.users.name}</span>
+                  <input
+                    onChange={(event) =>
+                      setEditForm((current) => ({ ...current, name: event.target.value }))
+                    }
+                    required
+                    value={editForm.name}
+                  />
+                </label>
+                <label>
+                  <span>{t.admin.users.email}</span>
+                  <input
+                    onChange={(event) =>
+                      setEditForm((current) => ({ ...current, email: event.target.value }))
+                    }
+                    required
+                    type="email"
+                    value={editForm.email}
+                  />
+                </label>
+                <div className="inline-actions">
+                  <button className="primary-button compact" disabled={loading} type="submit">
+                    {t.companyUsers.saveChanges}
+                  </button>
+                  <button
+                    className="secondary-button compact"
+                    onClick={() => setEditingUserId("")}
+                    type="button"
+                  >
+                    {t.companyUsers.cancel}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {passwordUserId && (
+              <form className="route-inline-editor company-user-inline-form" onSubmit={submitPasswordReset}>
+                <label>
+                  <span>{t.admin.users.newPassword}</span>
+                  <input
+                    minLength="6"
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    required
+                    type="text"
+                    value={newPassword}
+                  />
+                </label>
+                <div className="inline-actions">
+                  <button className="primary-button compact" disabled={loading} type="submit">
+                    {t.companyUsers.updatePassword}
+                  </button>
+                  <button
+                    className="secondary-button compact"
+                    onClick={() => setPasswordUserId("")}
+                    type="button"
+                  >
+                    {t.companyUsers.cancel}
+                  </button>
+                </div>
+              </form>
+            )}
+
             {filteredUsers.length ? (
               filteredUsers.map((user) => (
                 <article className="company-user-card" key={user.id}>
                   <div>
                     <strong>{user.name}</strong>
                     <span>{user.email}</span>
+                    <small>{user.clientName || t.modes.company}</small>
                   </div>
-                  <small>{user.clientName || t.modes.company}</small>
+                  <div className="company-user-management">
+                    <span className={user.isActive ? "status-badge active" : "status-badge"}>
+                      {user.isActive ? t.admin.users.active : t.admin.users.inactive}
+                    </span>
+                    <button
+                      className="secondary-button compact"
+                      onClick={() => startEdit(user)}
+                      type="button"
+                    >
+                      {t.companyUsers.edit}
+                    </button>
+                    <button
+                      className="secondary-button compact"
+                      onClick={() => startPasswordReset(user)}
+                      type="button"
+                    >
+                      {t.companyUsers.resetPassword}
+                    </button>
+                    <button
+                      className="secondary-button compact"
+                      onClick={() => onToggleUserStatus(user.id, !user.isActive)}
+                      type="button"
+                    >
+                      {user.isActive ? t.admin.users.disable : t.admin.users.enable}
+                    </button>
+                  </div>
                 </article>
               ))
             ) : (

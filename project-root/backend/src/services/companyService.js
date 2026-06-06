@@ -28,6 +28,55 @@ function assertValidEmail(email) {
   }
 }
 
+function assertCompanyAccount(currentUser) {
+  if (currentUser.role.code === "client" && !currentUser.client?.id) {
+    const error = new Error("La cuenta de empresa no esta asociada a ningun cliente.");
+    error.statusCode = 400;
+    throw error;
+  }
+}
+
+async function getManageableCompanyUser(connection, currentUser, userId) {
+  const parsedUserId = Number.parseInt(userId, 10);
+
+  if (!Number.isFinite(parsedUserId)) {
+    const error = new Error("Usuario no valido.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const [rows] = await connection.execute(
+    `
+      SELECT
+        u.id,
+        u.client_id AS clientId,
+        r.code AS roleCode
+      FROM users u
+      JOIN roles r ON r.id = u.role_id
+      WHERE u.id = :userId
+      LIMIT 1
+    `,
+    { userId: parsedUserId },
+  );
+
+  if (!rows.length || rows[0].roleCode !== "user") {
+    const error = new Error("El usuario indicado no existe o no es un usuario final.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (
+    currentUser.role.code === "client" &&
+    Number(rows[0].clientId) !== Number(currentUser.client?.id)
+  ) {
+    const error = new Error("No puedes gestionar usuarios de otra empresa.");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  return rows[0];
+}
+
 export async function getCompanyUsers(currentUser) {
   const pool = getDbPool();
   const params = {};
@@ -52,7 +101,6 @@ export async function getCompanyUsers(currentUser) {
       JOIN roles r ON r.id = u.role_id
       LEFT JOIN clients c ON c.id = u.client_id
       WHERE r.code = 'user'
-        AND u.is_active = TRUE
         ${clientFilter}
       ORDER BY u.created_at DESC, u.id DESC
     `,
@@ -63,11 +111,7 @@ export async function getCompanyUsers(currentUser) {
 }
 
 export async function createCompanyUser(currentUser, payload) {
-  if (currentUser.role.code === "client" && !currentUser.client?.id) {
-    const error = new Error("La cuenta de empresa no esta asociada a ningun cliente.");
-    error.statusCode = 400;
-    throw error;
-  }
+  assertCompanyAccount(currentUser);
 
   const name = requiredText(payload.name, "El nombre del usuario");
   const email = normalizeEmail(payload.email);
@@ -143,6 +187,118 @@ export async function createCompanyUser(currentUser, payload) {
       roleCode: "user",
       roleName: roles[0].name,
       isActive: true,
+    };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+export async function updateCompanyUser(currentUser, userId, payload) {
+  assertCompanyAccount(currentUser);
+
+  const name = requiredText(payload.name, "El nombre del usuario");
+  const email = normalizeEmail(payload.email);
+  assertValidEmail(email);
+
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+    await getManageableCompanyUser(connection, currentUser, userId);
+
+    const [existingUsers] = await connection.execute(
+      "SELECT id FROM users WHERE email = :email AND id <> :userId LIMIT 1",
+      { email, userId: Number.parseInt(userId, 10) },
+    );
+
+    if (existingUsers.length) {
+      const error = new Error("Ya existe otro usuario con ese email.");
+      error.statusCode = 409;
+      throw error;
+    }
+
+    await connection.execute(
+      "UPDATE users SET name = :name, email = :email WHERE id = :userId",
+      { userId: Number.parseInt(userId, 10), name, email },
+    );
+
+    await connection.commit();
+
+    return {
+      id: Number.parseInt(userId, 10),
+      name,
+      email,
+    };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+export async function setCompanyUserStatus(currentUser, userId, isActive) {
+  assertCompanyAccount(currentUser);
+
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+    await getManageableCompanyUser(connection, currentUser, userId);
+
+    await connection.execute(
+      "UPDATE users SET is_active = :isActive WHERE id = :userId",
+      { userId: Number.parseInt(userId, 10), isActive: Boolean(isActive) },
+    );
+
+    await connection.commit();
+
+    return {
+      id: Number.parseInt(userId, 10),
+      isActive: Boolean(isActive),
+    };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+export async function updateCompanyUserPassword(currentUser, userId, password) {
+  assertCompanyAccount(currentUser);
+
+  const nextPassword = String(password || "");
+
+  if (nextPassword.length < 6) {
+    const error = new Error("La password debe tener al menos 6 caracteres.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const pool = getDbPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+    await getManageableCompanyUser(connection, currentUser, userId);
+
+    const passwordHash = await bcrypt.hash(nextPassword, BCRYPT_ROUNDS);
+    await connection.execute(
+      "UPDATE users SET password_hash = :passwordHash WHERE id = :userId",
+      { userId: Number.parseInt(userId, 10), passwordHash },
+    );
+
+    await connection.commit();
+
+    return {
+      id: Number.parseInt(userId, 10),
+      hasPassword: true,
     };
   } catch (error) {
     await connection.rollback();

@@ -83,6 +83,39 @@ export function fetchMyRoutes() {
   return request("/api/routes/my");
 }
 
+export function fetchCompanyRoutes(filters = {}) {
+  const params = new URLSearchParams();
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      params.set(key, value);
+    }
+  });
+
+  const query = params.toString();
+  return request(`/api/company/routes${query ? `?${query}` : ""}`);
+}
+
+export function updateCompanyRoute(routeId, payload) {
+  return request(`/api/company/routes/${encodeURIComponent(routeId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateCompanyRouteRecommendation(routeId, payload) {
+  return request(`/api/company/routes/${encodeURIComponent(routeId)}/recommendation`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteCompanyRoute(routeId) {
+  return request(`/api/company/routes/${encodeURIComponent(routeId)}`, {
+    method: "DELETE",
+  });
+}
+
 export function fetchCompanyUsers() {
   return request("/api/company/users");
 }
@@ -91,6 +124,27 @@ export function createCompanyUser(payload) {
   return request("/api/company/users", {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+}
+
+export function updateCompanyUser(userId, payload) {
+  return request(`/api/company/users/${encodeURIComponent(userId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateCompanyUserStatus(userId, isActive) {
+  return request(`/api/company/users/${encodeURIComponent(userId)}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ isActive }),
+  });
+}
+
+export function updateCompanyUserPassword(userId, password) {
+  return request(`/api/company/users/${encodeURIComponent(userId)}/password`, {
+    method: "PATCH",
+    body: JSON.stringify({ password }),
   });
 }
 
@@ -116,6 +170,46 @@ export function updateAdminUserStatus(userId, isActive) {
   return request(`/api/admin/users/${encodeURIComponent(userId)}/status`, {
     method: "PATCH",
     body: JSON.stringify({ isActive }),
+  });
+}
+
+export function updateAdminUserPassword(userId, password) {
+  return request(`/api/admin/users/${encodeURIComponent(userId)}/password`, {
+    method: "PATCH",
+    body: JSON.stringify({ password }),
+  });
+}
+
+export function fetchAdminRoutes(filters = {}) {
+  const params = new URLSearchParams();
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      params.set(key, value);
+    }
+  });
+
+  const query = params.toString();
+  return request(`/api/admin/routes${query ? `?${query}` : ""}`);
+}
+
+export function updateAdminRoute(routeId, payload) {
+  return request(`/api/admin/routes/${encodeURIComponent(routeId)}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function duplicateAdminRoute(routeId, payload) {
+  return request(`/api/admin/routes/${encodeURIComponent(routeId)}/duplicate`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteAdminRoute(routeId) {
+  return request(`/api/admin/routes/${encodeURIComponent(routeId)}`, {
+    method: "DELETE",
   });
 }
 

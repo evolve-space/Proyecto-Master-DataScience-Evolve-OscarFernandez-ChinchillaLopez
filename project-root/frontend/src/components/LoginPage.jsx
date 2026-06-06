@@ -13,6 +13,7 @@ export default function LoginPage({
 }) {
   const [email, setEmail] = useState("admin.demo@example.com");
   const [password, setPassword] = useState("demo1234");
+  const [showPassword, setShowPassword] = useState(false);
 
   function submitLogin(event) {
     event.preventDefault();
@@ -44,13 +45,23 @@ export default function LoginPage({
           </label>
           <label>
             <span>{t.auth.password}</span>
-            <input
-              autoComplete="current-password"
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              type="password"
-              value={password}
-            />
+            <div className="password-input-wrap">
+              <input
+                autoComplete="current-password"
+                onChange={(event) => setPassword(event.target.value)}
+                required
+                type={showPassword ? "text" : "password"}
+                value={password}
+              />
+              <button
+                aria-label={showPassword ? t.auth.hidePassword : t.auth.showPassword}
+                className="password-toggle"
+                onClick={() => setShowPassword((current) => !current)}
+                type="button"
+              >
+                <span aria-hidden="true">{showPassword ? "⊘" : "◉"}</span>
+              </button>
+            </div>
           </label>
 
           {error && <p className="inline-error">{error}</p>}

@@ -328,3 +328,38 @@ export async function setUserActiveStatus(userId, isActive) {
     isActive: Boolean(isActive),
   };
 }
+
+export async function updateUserPassword(userId, password) {
+  const parsedUserId = Number.parseInt(userId, 10);
+  const nextPassword = String(password || "");
+
+  if (!Number.isFinite(parsedUserId)) {
+    const error = new Error("Usuario no valido.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (nextPassword.length < 6) {
+    const error = new Error("La password debe tener al menos 6 caracteres.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const passwordHash = await bcrypt.hash(nextPassword, BCRYPT_ROUNDS);
+  const pool = getDbPool();
+  const [result] = await pool.execute(
+    "UPDATE users SET password_hash = :passwordHash WHERE id = :userId",
+    { userId: parsedUserId, passwordHash },
+  );
+
+  if (result.affectedRows === 0) {
+    const error = new Error("Usuario no encontrado.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  return {
+    id: parsedUserId,
+    hasPassword: true,
+  };
+}

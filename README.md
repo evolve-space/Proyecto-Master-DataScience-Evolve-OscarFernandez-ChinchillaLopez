@@ -40,9 +40,14 @@ Actualmente incluye:
 - buscador/catalogo de POIs
 - guardado y recuperacion de rutas en MySQL
 - panel de administrador para empresas y usuarios
+- reseteo de passwords de usuarios desde el panel de administrador
+- gestion global de rutas guardadas desde el panel de administrador
 - login funcional con JWT
 - alta de usuarios finales desde la vista Empresa
+- gestion de usuarios finales desde la vista Empresa
 - asignacion de rutas a usuarios finales
+- gestion de rutas de empresa segmentadas por usuario final
+- actualizacion de rutas guardadas desde el editor sin crear una copia nueva
 - vista Usuario con rutas asignadas desde MySQL
 - importacion de POIs a MySQL
 - enriquecimiento de descripciones de POIs con Gemini Flash y cache en MySQL
@@ -167,8 +172,8 @@ project-root/
 
 Tiene tres vistas funcionales:
 
-- **Admin**: gestion de empresas, usuarios, estado y datos generales.
-- **Empresa**: generador inteligente, constructor manual, editor de rutas, alta de usuarios finales y asignacion de rutas.
+- **Admin**: gestion de empresas, usuarios, estado general y rutas guardadas.
+- **Empresa**: generador inteligente, constructor manual, editor de rutas, alta/gestion de usuarios finales, gestion de rutas y asignacion de rutas.
 - **Usuario**: consulta de rutas asignadas desde MySQL, carga por codigo publico y acceso rapido a rutas guardadas localmente.
 
 Estas vistas se seleccionan automaticamente segun el rol tras login.
@@ -186,6 +191,7 @@ Resultados destacados:
 - conexion real entre frontend, backend Node.js, motor Python y dataset hibrido
 - persistencia en MySQL de usuarios, empresas, POIs importados y rutas generadas
 - login con JWT y roles diferenciados para administrador, empresa y usuario final
+- gestion CRUD de rutas guardadas para administracion y empresas
 - descripciones turisticas generadas/cacheadas con Gemini Flash para mejorar la experiencia del usuario
 - visualizacion de rutas en mapa interactivo con resumen y detalle de POIs
 
@@ -288,10 +294,22 @@ GET    /api/admin
 POST   /api/admin/clients
 POST   /api/admin/users
 PATCH  /api/admin/users/:userId/status
+PATCH  /api/admin/users/:userId/password
+GET    /api/admin/routes
+PATCH  /api/admin/routes/:routeId
+POST   /api/admin/routes/:routeId/duplicate
+DELETE /api/admin/routes/:routeId
 POST   /api/auth/login
 GET    /api/auth/me
+GET    /api/company/routes
+PATCH  /api/company/routes/:routeId
+PUT    /api/company/routes/:routeId/recommendation
+DELETE /api/company/routes/:routeId
 GET    /api/company/users
 POST   /api/company/users
+PATCH  /api/company/users/:userId
+PATCH  /api/company/users/:userId/status
+PATCH  /api/company/users/:userId/password
 ```
 
 Enriquecimiento opcional con IA generativa:
@@ -531,10 +549,9 @@ uso_ml_en_el_recomendador.txt
 Los siguientes pasos naturales son:
 
 - extender la proteccion por rol al resto de endpoints privados
-- mejorar la gestion/listado de rutas desde la vista Empresa
-- anadir busqueda avanzada de rutas guardadas
+- anadir auditoria historica de cambios sobre rutas
 - anadir tests de backend y recomendador
-- mejorar explicabilidad de POIs con textos enriquecidos
+- mejorar explicabilidad avanzada de POIs con textos enriquecidos
 
 ## Idea principal
 

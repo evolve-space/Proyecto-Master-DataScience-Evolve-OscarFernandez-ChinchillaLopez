@@ -53,8 +53,12 @@ Panel de administracion inicial:
 - crear usuario de acceso al crear empresa
 - crear usuarios manualmente
 - asignar usuarios a empresa
+- cambiar la password de un usuario si la olvida
 - activar/desactivar usuarios
 - buscador de empresas y usuarios
+- gestion global de rutas guardadas
+- busqueda/filtro de rutas por empresa
+- renombrar, reasignar, duplicar y eliminar rutas
 
 Esta vista queda asociada al rol `admin` mediante login JWT.
 
@@ -65,9 +69,11 @@ Vista para empresas/clientes:
 - generador inteligente de rutas con el modelo hibrido
 - constructor manual con catalogo de POIs
 - editor de ruta activa
-- alta y buscador de usuarios finales de la empresa
+- alta, buscador y gestion de usuarios finales de la empresa
+- gestion de rutas guardadas de la empresa por usuario final
 - guardado de rutas en MySQL
 - asignacion de rutas a usuarios finales
+- actualizacion de rutas guardadas desde el editor sin crear una copia nueva
 
 ### Usuario
 
@@ -108,10 +114,22 @@ GET    /api/admin
 POST   /api/admin/clients
 POST   /api/admin/users
 PATCH  /api/admin/users/:userId/status
+PATCH  /api/admin/users/:userId/password
+GET    /api/admin/routes
+PATCH  /api/admin/routes/:routeId
+POST   /api/admin/routes/:routeId/duplicate
+DELETE /api/admin/routes/:routeId
 POST   /api/auth/login
 GET    /api/auth/me
+GET    /api/company/routes
+PATCH  /api/company/routes/:routeId
+PUT    /api/company/routes/:routeId/recommendation
+DELETE /api/company/routes/:routeId
 GET    /api/company/users
 POST   /api/company/users
+PATCH  /api/company/users/:userId
+PATCH  /api/company/users/:userId/status
+PATCH  /api/company/users/:userId/password
 ```
 
 ## Frontend
@@ -267,4 +285,4 @@ uso_ml_en_el_recomendador.txt
 
 ## Estado actual
 
-La web ya esta conectada con el recomendador hibrido real, MySQL y login JWT. La vista Empresa puede crear usuarios finales y asignarles rutas, y la vista Usuario puede consultar las rutas asignadas desde la BDD. El siguiente salto importante es reforzar permisos por rol en todos los flujos privados y mejorar la gestion/listado de rutas desde Empresa.
+La web ya esta conectada con el recomendador hibrido real, MySQL y login JWT. La vista Empresa puede crear usuarios finales, gestionar sus rutas guardadas, asignarlas a usuarios y actualizar una ruta desde el editor. La vista Admin puede gestionar empresas, usuarios y rutas globales. La vista Usuario puede consultar las rutas asignadas desde la BDD.
